@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--<!DOCTYPE beans PUBLIC "-//SPRING// DTD BEAN//EN" "http://www.springframework.org/dtd/spring-beans.dtd">-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:util="http://www.springframework.org/schema/util"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.0.xsd
+       http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-2.0.xsd">
+
+    <import resource="persist_config.xml"/>
+
+    <bean class="org.springframework.remoting.rmi.RmiServiceExporter">
+        <!-- does not necessarily have to be the same name as the bean to be exported -->
+        <property name="serviceName" value="SecurityProcessor"/>
+        <property name="service" ref="securityHandler"/>
+        <property name="serviceInterface" value="com.bps.security.interfaces.ISecurityService"/>
+        <!-- defaults to 1099 -->
+        <property name="registryPort" value="1199"/>
+      <!--  <property name="servicePort" value="1198"/> -->
+    </bean>
+    
+    <bean id="securityHandler" class="com.bps.security.channel.SecurityHandler">
+        <property name="user" value="ali"/>
+        <property name="pass" value="ali"/>
+        <property name="terminalId" value="1"/>
+        <property name="facade" ref="switchFacade"/>
+
+    </bean>
+
+    <bean id="service" class="org.springframework.remoting.rmi.RmiProxyFactoryBean">
+        <property name="serviceUrl" value="rmi://127.0.0.1:1199/SecurityProcessor"/>
+        <property name="serviceInterface" value="com.bps.security.interfaces.ISecurityService"/>
+        <property name="refreshStubOnConnectFailure" value="true"/>
+        <property name="lookupStubOnStartup" value="false"/>
+    </bean>
+
+
+</beans>

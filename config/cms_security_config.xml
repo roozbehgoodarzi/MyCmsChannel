@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--<!DOCTYPE beans PUBLIC "-//SPRING// DTD BEAN//EN" "http://www.springframework.org/dtd/spring-beans.dtd">-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:util="http://www.springframework.org/schema/util"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.0.xsd
+       http://www.springframework.org/schema/aop
+       http://www.springframework.org/schema/aop/spring-aop-2.0.xsd
+       http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-2.0.xsd">
+	<import resource="persist_config.xml"/><import resource="security_config.xml"/>
+    <bean class="org.springframework.remoting.rmi.RmiServiceExporter">
+        <property name="serviceName" value="CmsSecurity"/>
+        <property name="service" ref="cmsSecurityImpl"/>
+        <property name="serviceInterface" value="com.bps.sw.core.interfaces.ICmsInterface"/>
+        <property name="registryPort" value="1199"/>
+        <!--<property name="servicePort" value="1198"/>-->
+        <property name="replaceExistingBinding" value="true"/>
+        <property name="alwaysCreateRegistry" value="false"/>
+    </bean>
+
+    <bean id="cmsSecurityImpl" class="com.bps.security.hsm.CmsSecurityImpl" init-method="init">
+        <property name="facade" ref="switchFacade"/>
+        <property name="cmsFacade" ref="cmsFacade"/>
+        <property name="service" ref="iRemoteHsmService"/>
+        <property name="cmsServiceChannelGroupId" value="206"/>
+        <property name="ppk" value="020001"/>
+        <property name="ppk2" value="020001"/>
+    </bean>
+
+    <bean id="iRemoteHsmService" class="org.springframework.remoting.rmi.RmiProxyFactoryBean">
+        <!--<property name="serviceUrl" value="rmi://172.20.120.201:1199/SecurityService"/>-->
+        <property name="serviceUrl" value="rmi://172.20.120.64:1199/SecurityService"/>
+        <!--<property name="serviceUrl" value="rmi://172.16.166.31:1199/SecurityService"/>-->
+        <!--<property name="serviceUrl" value="rmi://172.16.166.129:1199/SecurityService"/>-->
+        <property name="serviceInterface" value="com.bps.sw.core.interfaces.IHsmJniLib"/>
+        <property name="lookupStubOnStartup" value="false"/>
+        <property name="refreshStubOnConnectFailure" value="true"/>
+    </bean>
+
+    <bean id="monitoringService" class="com.bps.sw.core.monitoring.MonitoringImpl" init-method="init">
+        <property name="iMonitoringInterface" ref="monitoringServiceInterface"/>
+    </bean>
+
+    <bean id="monitoringServiceInterface" class="org.springframework.remoting.rmi.RmiProxyFactoryBean">
+        <!--<property name="serviceUrl" value="rmi://172.16.166.203:1199/MonitoringMessageProcessor"/>-->
+        <property name="serviceUrl" value="rmi://172.20.120.162:1199/MonitoringMessageProcessor"/>
+        <property name="serviceInterface" value="com.bps.sw.core.interfaces.IMonitoringInterface"/>
+        <property name="refreshStubOnConnectFailure" value="true"/>
+        <property name="lookupStubOnStartup" value="false"/>
+    </bean>
+</beans>

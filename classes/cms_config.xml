@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--<!DOCTYPE beans PUBLIC "-//SPRING// DTD BEAN//EN" "http://www.springframework.org/dtd/spring-beans.dtd">-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:util="http://www.springframework.org/schema/util"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.0.xsd
+       http://www.springframework.org/schema/aop
+       http://www.springframework.org/schema/aop/spring-aop-2.0.xsd
+       http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-2.0.xsd">
+    <import resource="persist_config.xml"/>
+    <import resource="security_config.xml"/>
+    <bean class="org.springframework.remoting.rmi.RmiServiceExporter">
+        <property name="serviceName" value="CmsChannel"/>
+        <property name="service" ref="processCms"/>
+        <property name="serviceInterface" value="com.bps.sw.core.interfaces.IRemoteService"/>
+        <property name="registryPort" value="1199"/>
+        <!--<property name="servicePort" value="1198"/>-->
+        <property name="replaceExistingBinding" value="true"/>
+        <property name="alwaysCreateRegistry" value="false"/>
+    </bean>
+
+
+    <bean id="processCms" class="com.bps.sw.channels.cms.handlers.ProcessCms">
+        <property name="handlers">
+            <list>
+                <ref bean="convertRawTransaction2TpTransaction"/>
+                <ref bean="processCmsBaseOnServiceGroupId"/>
+                <ref bean="prepareCmsResponse"/>
+                <ref bean="replyBasedOnRawTransaction"/>
+            </list>
+        </property>
+        <property name="exceptionHandler">
+            <list>
+                <ref bean="cmsExceptionHandler"/>
+            </list>
+        </property>
+    </bean>
+    <bean id="convertRawTransaction2TpTransaction"
+          class="com.bps.sw.channels.cms.handlers.ConvertRawTransaction2TpTransaction">
+        <property name="terminalTypeMap">
+            <map>
+                <entry key="1" value="1"/>
+                <entry key="4" value="1"/>
+                <entry key="5" value="3"/>
+                <entry key="6" value="2"/>
+                <entry key="12" value="6"/>
+                <entry key="14" value="5"/>
+                <entry key="15" value="7"/>
+            </map>
+        </property>
+    </bean>
+
+    <bean id="processCmsBaseOnServiceGroupId" class="com.bps.sw.channels.cms.handlers.ProcessCmsBaseOnServiceGroupId">
+        <property name="serviceGroupId">
+            <map>
+                <entry key="1" value-ref="generalCheckHandler"/>
+                <entry key="4" value-ref="generalCheckHandler"/>
+                <entry key="5" value-ref="generalCheckHandler"/>
+                <entry key="34" value-ref="generalCheckHandler"/>
+                <entry key="40" value-ref="generalCheckHandler"/>
+                <entry key="41" value-ref="generalCheckHandler"/>
+                <entry key="42" value-ref="generalCheckHandler"/>
+                <entry key="50" value-ref="preChangePinHandler"/>
+                <entry key="51" value-ref="preChangePinHandler"/>
+                <entry key="61" value-ref="preResetPinHandler"/>
+            </map>
+        </property>
+
+    </bean>
+
+    <bean id="cmsExceptionHandler" class="com.bps.sw.channels.cms.handlers.ExceptionHandler">
+        <property name="facade" ref="switchFacade"/>
+        <property name="cmsActionCodeParameterGroupId" value="208"/>
+    </bean>
+
+    <bean id="generalCheckHandler" class="com.bps.sw.channels.cms.handlers.GeneralCheckHandler">
+        <property name="handlers">
+            <list>
+                <ref bean="getCheckPanStatus"/>
+                <ref bean="checkForPinExistanceAndAuthenticatePan"/>
+                <!--<ref bean="checkPanHandler"/>-->
+            </list>
+        </property>
+    </bean>
+
+    <bean id="checkForPinExistanceAndAuthenticatePan" class="com.bps.sw.channels.cms.handlers.CheckForPinExistance">
+        <property name="panExistance">
+            <map>
+                <entry key="1" value-ref="sendToNeginAndUpdatePinHandler"/>
+                <entry key="2" value-ref="sendToNeginAndUpdatePin2Handler"/>
+                <entry key="*" value-ref="checkPanAuthentication"/>
+            </map>
+        </property>
+    </bean>
+    <bean id="sendToNeginAndUpdatePinHandler" class="com.bps.sw.channels.cms.handlers.GeneralCheckHandler">
+        <property name="handlers">
+            <list>
+                <ref bean="sendToNegainChannel"/>
+                <ref bean="capturePin"/>
+                <!--<ref bean="checkPanAuthentication"/>-->
+            </list>
+        </property>
+    </bean>
+    <bean id="sendToNeginAndUpdatePin2Handler" class="com.bps.sw.channels.cms.handlers.GeneralCheckHandler">
+        <property name="handlers">
+            <list>
+                <ref bean="sendToNegainChannel"/>
+                <ref bean="capturePin2"/>
+                <!--<ref bean="checkPanAuthentication"/>-->
+            </list>
+        </property>
+    </bean>
+    <bean id="capturePin" class="com.bps.sw.channels.cms.handlers.CapturePin">
+        <property name="cmsFacade" ref="cmsFacade"/>
+        <property name="remoteHsmService" ref="cmsSecurityService"/>
+        <!--<property name="PIN_BLOCK_KEY" value="D66503946AEFF223792AAAED5226893F"/>-->
+        <property name="PIN_BLOCK_KEY" value="3456789012abcdeffedcba2109876543"/>
+        <property name="securityService" ref="securityHandler"/>
+    </bean>
+    <bean id="capturePin2" class="com.bps.sw.channels.cms.handlers.CapturePin2">
+        <property name="cmsFacade" ref="cmsFacade"/>
+        <property name="remoteHsmService" ref="cmsSecurityService"/>
+        <!--<property name="PIN_BLOCK_KEY" value="D66503946AEFF223792AAAED5226893F"/>-->
+        <property name="PIN_BLOCK_KEY" value="3456789012abcdeffedcba2109876543"/>
+        <property name="securityService" ref="securityHandler"/>
+    </bean>
+
+    <bean id="getCheckPanStatus" class="com.bps.sw.channels.cms.handlers.GetCheckPanStatus">
+        <property name="cmsFacade" ref="cmsFacade"/>
+    </bean>
+
+    <bean id="checkPanAuthentication" class="com.bps.sw.channels.cms.handlers.CheckPanAuthentication">
+        <property name="cmsFacade" ref="cmsFacade"/>
+        <property name="facade" ref="switchFacade"/>
+        <property name="cmsChannelActionCodeParameterId" value="208"/>
+        <property name="remoteHsmService" ref="cmsSecurityService"/>
+        <!-- <property name="remoteHsmService" ref="cmsSecurityImpl"/> -->
+        <!--<property name="PIN_BLOCK_KEY" value="D66503946AEFF223792AAAED5226893F"/>-->
+        <property name="PIN_BLOCK_KEY" value="3456789012abcdeffedcba2109876543"/>
+        <property name="securityService" ref="securityHandler"/>
+    </bean>
+
+    <bean id="prepareCmsResponse" class="com.bps.sw.channels.cms.handlers.PrepareCmsResponse">
+        <property name="cmsFacade" ref="cmsFacade"/>
+    </bean>
+
+    <bean id="replyBasedOnRawTransaction" class="com.bps.sw.channels.cms.handlers.ReplyBasedOnRawTransaction"/>
+
+    <bean id="changePinHandler" class="com.bps.sw.channels.cms.handlers.GeneralCheckHandler">
+        <property name="handlers">
+            <list>
+                <ref bean="getCheckPanStatus"/>
+                <ref bean="checkPanAuthentication"/>
+                <ref bean="changePin"/>
+            </list>
+        </property>
+    </bean>
+
+    <bean id="preChangePinHandler" class="com.bps.sw.channels.cms.handlers.ProcessBasedOnIssueCenterId">
+        <property name="cmsFacade" ref="cmsFacade"/>
+        <property name="issueCenter">
+            <map>
+                <entry key="1" value-ref="changePinHandler"/>
+                <entry key="2" value-ref="neginChangePinHandler"/>
+            </map>
+        </property>
+    </bean>
+
+    <bean id="preResetPinHandler" class="com.bps.sw.channels.cms.handlers.GeneralCheckHandler">
+        <property name="handlers">
+            <list>
+                <ref bean="getCheckPanStatus"/>
+                <ref bean="resetPinBasedOnIssueCenter"/>
+            </list>
+        </property>
+    </bean>
+
+    <bean id="resetPinBasedOnIssueCenter" class="com.bps.sw.channels.cms.handlers.ProcessBasedOnIssueCenterId">
+        <property name="cmsFacade" ref="cmsFacade"/>
+        <property name="issueCenter">
+            <map>
+                <entry key="1" value-ref="resetPin"/>
+                <entry key="2" value-ref="neginResetPinHandler"/>
+            </map>
+        </property>
+    </bean>
+
+    <bean id="neginChangePinHandler" class="com.bps.sw.channels.cms.handlers.GeneralCheckHandler">
+        <property name="handlers">
+            <list>
+                <ref bean="getCheckPanStatus"/>
+                <ref bean="sendToNegainChannel"/>
+                <!--<ref bean="changePin"/>-->
+                <ref bean="calculatePvv"/>
+            </list>
+        </property>
+    </bean>
+
+
+    <bean id="changePin" class="com.bps.sw.channels.cms.handlers.ChangePin">
+        <property name="facade" ref="switchFacade"/>
+        <!--<property name="PIN_BLOCK_KEY" value="D66503946AEFF223792AAAED5226893F"/>-->
+        <property name="PIN_BLOCK_KEY" value="3456789012abcdeffedcba2109876543"/>
+        <property name="securityService" ref="securityHandler"/>
+        <property name="remoteHsmService" ref="cmsSecurityService"/>
+        <property name="cmsActionCodeParameterGroupId" value="208"/>
+    </bean>
+
+    <bean id="preResetHandler" class="com.bps.sw.channels.cms.handlers.PreResetPinHandler">
+        <property name="issueCenter">
+            <map>
+                <entry key="1" value-ref="resetPinHandler"/>
+                <entry key="2" value-ref="neginResetPinHandler"/>
+            </map>
+        </property>
+    </bean>
+    <bean id="neginResetPinHandler" class="com.bps.sw.channels.cms.handlers.GeneralCheckHandler">
+        <property name="handlers">
+            <list>
+                <ref bean="sendToNegainChannel"/>
+                <ref bean="resetPin"/>
+            </list>
+        </property>
+
+    </bean>
+
+    <bean id="resetPinHandler" class="com.bps.sw.channels.cms.handlers.GeneralCheckHandler">
+        <property name="handlers">
+            <list>
+                <ref bean="resetPin"/>
+            </list>
+        </property>
+    </bean>
+
+    <!--<bean id="PIN_BLOCK_KEY">-->
+        <!--<property  value="D66503946AEFF223792AAAED5226893F" name="pinBlock"/>-->
+    <!--</bean>-->
+
+    <bean id="resetPin" class="com.bps.sw.channels.cms.handlers.ResetPin">
+        <property name="cmsFacade" ref="cmsFacade"/>
+        <property name="facade" ref="switchFacade"/>
+        <!--<property name="PIN_BLOCK_KEY" value="2222222222222222"/>-->
+        <!--<property name="PIN_BLOCK_KEY" ref="PIN_BLOCK_KEY"/>-->
+        <!--<property name="PIN_BLOCK_KEY" value="D66503946AEFF223792AAAED5226893F"/>-->
+        <property name="PIN_BLOCK_KEY" value="3456789012abcdeffedcba2109876543"/>
+        <property name="securityService" ref="securityHandler"/>
+        <property name="remoteHsmService" ref="cmsSecurityService"/>
+        <property name="cmsActionCodeParameterGroupId" value="208"/>
+    </bean>
+
+    <bean id="calculatePvv" class="com.bps.sw.channels.cms.handlers.CalculatePvv">
+        <property name="cmsFacade" ref="cmsFacade"/>
+        <property name="facade" ref="switchFacade"/>
+        <!--<property name="PIN_BLOCK_KEY" value="2222222222222222"/>-->
+        <!--<property name="PIN_BLOCK_KEY" value="D66503946AEFF223792AAAED5226893F"/>-->
+        <property name="PIN_BLOCK_KEY" value="3456789012abcdeffedcba2109876543"/>
+        <property name="securityService" ref="securityHandler"/>
+        <property name="remoteHsmService" ref="cmsSecurityService"/>
+        <property name="cmsActionCodeParameterGroupId" value="208"/>
+    </bean>
+
+
+    <bean id="cmsSecurityService" class="org.springframework.remoting.rmi.RmiProxyFactoryBean">
+        <property name="serviceUrl" value="rmi://127.0.0.1:1199/CmsSecurity"/>
+        <property name="serviceInterface" value="com.bps.sw.core.interfaces.ICmsInterface"/>
+        <property name="lookupStubOnStartup" value="false"/>
+        <property name="refreshStubOnConnectFailure" value="true"/>
+    </bean>
+
+    <bean id="monitoringService" class="com.bps.sw.core.monitoring.MonitoringImpl" init-method="init">
+        <property name="iMonitoringInterface" ref="monitoringServiceInterface"/>
+    </bean>
+
+
+    <bean id="sendToNegainChannel" class="com.bps.sw.channels.cms.handlers.SendToNeginChannelHandler">
+        <property name="IRemote" ref="neginService"/>
+    </bean>
+
+    <bean id="neginService" class="org.springframework.remoting.rmi.RmiProxyFactoryBean">
+        <property name="serviceUrl" value="rmi://172.16.166.225:1199/NeginService"/>
+        <property name="serviceInterface" value="com.bps.sw.core.interfaces.IRemoteService"/>
+        <property name="refreshStubOnConnectFailure" value="true"/>
+        <property name="lookupStubOnStartup" value="false"/>
+    </bean>
+
+    <bean id="monitoringServiceInterface" class="org.springframework.remoting.rmi.RmiProxyFactoryBean">
+        <!--<property name="serviceUrl" value="rmi://172.16.166.203:1199/MonitoringMessageProcessor"/>-->
+        <property name="serviceUrl" value="rmi://172.20.120.162:1199/MonitoringMessageProcessor"/>
+        <property name="serviceInterface" value="com.bps.sw.core.interfaces.IMonitoringInterface"/>
+        <property name="refreshStubOnConnectFailure" value="true"/>
+        <property name="lookupStubOnStartup" value="false"/>
+    </bean>
+
+
+</beans>
